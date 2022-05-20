@@ -1,0 +1,13 @@
+services:
+  tea-runner:
+    build: .
+    image: tea-runner
+    container_name: tea-runner
+    hostname: tea-runner
+    restart: unless-stopped
+    ports:
+      - "1706:1706"
+    volumes:
+      - ./config.ini:/usr/src/app/config.ini
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /srv/www:/srv/www
