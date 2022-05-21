@@ -7,3 +7,5 @@ Tea Runner must be running on the destination host (<server_name_or_ip> below).
 3. Configure a webhook in the repository with a target URL of http://<server_name_or_ip>:1706/docker/build
 4. Trigger the webhook with Gitea's Test Delivery button.
 5. Verify the image is on the destination host by running: docker run --rm hello-docker
+
+See also: https://docs.gitea.io/en-us/webhooks/
