@@ -107,7 +107,7 @@ def rsync():
   if not check_authorized(request.remote_addr):
     return jsonify(status='forbidden'), 403
   body = request.get_json()
-  dest = request.args.get('dest')
+  dest = request.args.get('dest') or body['repository']['name']
   rsync_root = config.get('rsync', 'RSYNC_ROOT', fallback='')
   if rsync_root:
     dest = path.join(rsync_root, utils.secure_filename(dest))
@@ -115,7 +115,7 @@ def rsync():
 
   with TemporaryDirectory() as temp_dir:
     if git_clone(body['repository']['clone_url'], temp_dir):
-      logging.info('rsync to ' + dest)
+      logging.info('rsync ' + body['repository']['name'] + ' to ' + dest)
       chdir(temp_dir)
       result = run([RSYNC_BIN, '-r', '--exclude=.git', '.', dest],
         stdout=None if args.debug else DEVNULL, stderr=None if args.debug else DEVNULL)
