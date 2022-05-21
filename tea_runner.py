@@ -26,11 +26,13 @@ import logging
 from argparse import ArgumentParser
 from configparser import ConfigParser
 from flask import Flask, request, jsonify
+from werkzeug import utils
 from waitress import serve
 from tempfile import TemporaryDirectory
 from os import access, X_OK, chdir, path
 from sys import exit
 from subprocess import run, DEVNULL
+from os import path
 
 print("Tea Runner")
 
@@ -106,6 +108,10 @@ def rsync():
     return jsonify(status='forbidden'), 403
   body = request.get_json()
   dest = request.args.get('dest')
+  rsync_root = config.get('rsync', 'RSYNC_ROOT', fallback='')
+  if rsync_root:
+    dest = path.join(rsync_root, utils.secure_filename(dest))
+    logging.debug('rsync dest path updated to ' + dest)
 
   with TemporaryDirectory() as temp_dir:
     if git_clone(body['repository']['clone_url'], temp_dir):
