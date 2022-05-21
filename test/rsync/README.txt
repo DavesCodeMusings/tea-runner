@@ -7,3 +7,5 @@ Tea Runner must be running on the destination host (<server_name_or_ip> below). 
 3. Configure a webhook in the repository with a target URL of http://<server_name_or_ip>:1706/rsync?dest=%2Fsrv%2Fwww
 4. Trigger the webhook with Gitea's Test Delivery button.
 5. Verify the index.html file is on the destination host by running: cat /srv/www/index.html
+
+See also: https://docs.gitea.io/en-us/webhooks/
