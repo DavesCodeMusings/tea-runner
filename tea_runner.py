@@ -5,12 +5,12 @@
 
   Command-line options:
     --debug, -d  Send more detailed log output to console.
-
+  
   Configuration file (config.ini) options:
 
     [runner]
-    GITEA_SERVER_IP=xxx.xxx.xxx.xxx
-    # Only respond to requests made from IP address xxx.xxx.xxx.xxx
+    ALLOWED_IP_RANGE=xxx.xxx.xxx.xxx/mm
+    # Only respond to requests made from this range of IP addresses. Eg. 192.168.1.0/24
     LISTEN_IP=xxx.xxx.xxx.xxx
     # IP address for incoming requests. Defaults to 0.0.0.0 (Any).
     LISTEN_PORT=xxxx
@@ -33,6 +33,7 @@ from os import access, X_OK, chdir, path
 from sys import exit
 from subprocess import run, DEVNULL
 from os import path
+from ipaddress import ip_address, ip_network
 
 print("Tea Runner")
 
@@ -63,17 +64,22 @@ if not access(DOCKER_BIN, X_OK):
 
 def check_authorized(remote_ip):
   """
-    Only respond to requests from the Gitea server's IP address (GITEA_HOST_IP in config.ini)
+    Only respond to requests from ALLOWED_IP_RANGE if it's configured in config.ini
       :remote_ip (string): Requestor IP address to check.
       :return (boolean): True if requestor IP matched configured GITEA_HOST_IP.
   """
 
-  if config.has_option('runner', 'GITEA_HOST_IP') and config['runner']['GITEA_HOST_IP'] != remote_ip:
-    logging.info('Dropping request from unauthorized host ' + remote_ip)
-    return False
-  else:
-    logging.info('Request from ' + remote_ip)
+  if not config.has_option('runner', 'ALLOWED_IP_RANGE'):
     return True
+  else:
+    allowed_ip_range = ip_network(config['runner']['ALLOWED_IP_RANGE'])
+    requesting_ip = ip_address(remote_ip)
+    if requesting_ip not in allowed_ip_range:
+      logging.info('Dropping request from unauthorized host ' + remote_ip)
+      return False
+    else:
+      logging.info('Request from ' + remote_ip)
+      return True
 
 
 def git_clone(src_url, dest_dir):
@@ -123,7 +129,7 @@ def rsync():
         return jsonify(status='rsync failed'), 500
     else:
       return jsonify(status='git clone failed'), 500
-
+      
   return jsonify(status='success')
 
 
@@ -143,11 +149,12 @@ def docker_build():
         return jsonify(status='docker build failed'), 500
     else:
       return jsonify(status='git clone failed'), 500
-
+      
   return jsonify(status='success')
 
 
 if __name__ == '__main__':
-  logging.info('Limiting requests to Gitea server at: ' + config.get('runner', 'GITEA_HOST_IP', fallback='<any>'))
+  logging.info('Limiting requests to: ' + config.get('runner', 'ALLOWED_IP_RANGE', fallback='<any>'))
   serve(app, host=config.get('runner', 'LISTEN_IP', fallback='0.0.0.0'),
     port=config.getint('runner', 'LISTEN_PORT', fallback=1706))
+
