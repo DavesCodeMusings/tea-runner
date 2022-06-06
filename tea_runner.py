@@ -5,7 +5,7 @@
 
   Command-line options:
     --debug, -d  Send more detailed log output to console.
-  
+
   Configuration file (config.ini) options:
 
     [runner]
@@ -62,26 +62,6 @@ if not access(DOCKER_BIN, X_OK):
   exit(1)
 
 
-def check_authorized(remote_ip):
-  """
-    Only respond to requests from ALLOWED_IP_RANGE if it's configured in config.ini
-      :remote_ip (string): Requestor IP address to check.
-      :return (boolean): True if requestor IP matched configured GITEA_HOST_IP.
-  """
-
-  if not config.has_option('runner', 'ALLOWED_IP_RANGE'):
-    return True
-  else:
-    allowed_ip_range = ip_network(config['runner']['ALLOWED_IP_RANGE'])
-    requesting_ip = ip_address(remote_ip)
-    if requesting_ip not in allowed_ip_range:
-      logging.info('Dropping request from unauthorized host ' + remote_ip)
-      return False
-    else:
-      logging.info('Request from ' + remote_ip)
-      return True
-
-
 def git_clone(src_url, dest_dir):
   """
     Clone a remote git repository into a local directory.
@@ -99,6 +79,24 @@ def git_clone(src_url, dest_dir):
 
 app = Flask(__name__)
 
+@app.before_request
+def check_authorized():
+  """
+    Only respond to requests from ALLOWED_IP_RANGE if it's configured in config.ini
+  """
+
+  if not config.has_option('runner', 'ALLOWED_IP_RANGE'):
+    return True
+  else:
+    allowed_ip_range = ip_network(config['runner']['ALLOWED_IP_RANGE'])
+    requesting_ip = ip_address(request.remote_addr)
+    if requesting_ip not in allowed_ip_range:
+      logging.info('Dropping request from unauthorized host ' + request.remote_addr)
+      return jsonify(status='forbidden'), 403
+    else:
+      logging.info('Request from ' + request.remote_addr)
+
+
 @app.route('/test', methods=['POST'])
 def test():
   if not check_authorized(request.remote_addr):
@@ -110,8 +108,6 @@ def test():
 
 @app.route('/rsync', methods=['POST'])
 def rsync():
-  if not check_authorized(request.remote_addr):
-    return jsonify(status='forbidden'), 403
   body = request.get_json()
   dest = request.args.get('dest') or body['repository']['name']
   rsync_root = config.get('rsync', 'RSYNC_ROOT', fallback='')
@@ -129,14 +125,12 @@ def rsync():
         return jsonify(status='rsync failed'), 500
     else:
       return jsonify(status='git clone failed'), 500
-      
+
   return jsonify(status='success')
 
 
 @app.route('/docker/build', methods=['POST'])
 def docker_build():
-  if not check_authorized(request.remote_addr):
-    return jsonify(status='forbidden'), 403
   body = request.get_json()
 
   with TemporaryDirectory() as temp_dir:
@@ -149,7 +143,7 @@ def docker_build():
         return jsonify(status='docker build failed'), 500
     else:
       return jsonify(status='git clone failed'), 500
-      
+
   return jsonify(status='success')
 
 
@@ -157,4 +151,3 @@ if __name__ == '__main__':
   logging.info('Limiting requests to: ' + config.get('runner', 'ALLOWED_IP_RANGE', fallback='<any>'))
   serve(app, host=config.get('runner', 'LISTEN_IP', fallback='0.0.0.0'),
     port=config.getint('runner', 'LISTEN_PORT', fallback=1706))
-
