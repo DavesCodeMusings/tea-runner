@@ -85,9 +85,7 @@ def check_authorized():
     Only respond to requests from ALLOWED_IP_RANGE if it's configured in config.ini
   """
 
-  if not config.has_option('runner', 'ALLOWED_IP_RANGE'):
-    return True
-  else:
+  if config.has_option('runner', 'ALLOWED_IP_RANGE'):
     allowed_ip_range = ip_network(config['runner']['ALLOWED_IP_RANGE'])
     requesting_ip = ip_address(request.remote_addr)
     if requesting_ip not in allowed_ip_range:
@@ -97,10 +95,18 @@ def check_authorized():
       logging.info('Request from ' + request.remote_addr)
 
 
+@app.before_request
+def check_media_type():
+  """
+    Only respond requests with Content-Type header of application/json
+  """
+  if not request.headers.get('Content-Type').lower().startswith('application/json'):
+    logging.error('"Content-Type: application/json" header missing from request made by ' + request.remote_addr)
+    return jsonify(status='unsupported media type'), 415
+
+
 @app.route('/test', methods=['POST'])
 def test():
-  if not check_authorized(request.remote_addr):
-    return jsonify(status='forbidden'), 403
   logging.debug('Content-Type: ' + request.headers.get('Content-Type'))
   logging.debug(request.get_json(force=True))
   return jsonify(status='success', sender=request.remote_addr)
