@@ -1,7 +1,6 @@
 services:
   tea-runner:
-    build: .
-    image: tea-runner
+    image: ghcr.io/davescodemusings/tea-runner
     container_name: tea-runner
     hostname: tea-runner
     restart: unless-stopped
