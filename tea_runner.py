@@ -29,7 +29,7 @@ from flask import Flask, request, jsonify
 from werkzeug import utils
 from waitress import serve
 from tempfile import TemporaryDirectory
-from os import access, X_OK, chdir, path
+from os import access, X_OK, chdir, environ, path
 from sys import exit
 from subprocess import run, DEVNULL
 from os import path
@@ -71,6 +71,8 @@ def git_clone(src_url, dest_dir):
   """
 
   logging.info('git clone ' + src_url)
+  if config.getboolean('runner', 'GIT_SSL_NO_VERIFY', fallback='False') == True:
+    environ['GIT_SSL_NO_VERIFY'] = 'true'
   chdir(dest_dir)
   clone_result = run([GIT_BIN, 'clone', src_url, '.'],
     stdout=None if args.debug else DEVNULL, stderr=None if args.debug else DEVNULL)
