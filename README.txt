@@ -1,3 +1,5 @@
 Minimalist CI/CD for your Gitea
 
-See this project's wiki for more information on how to get started.
+Use `docker-compose -f compose.yml up -d` for a quick start.
+
+See the project's wiki for more detailed information.
