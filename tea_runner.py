@@ -44,15 +44,19 @@ arg_parser.add_argument('-d', '--debug', action='store_true',
                         help='display debugging output while running')
 args = arg_parser.parse_args()
 
+config = ConfigParser()
+config.read('config.ini')
+
 if args.debug:
+    config.set('runner', 'DEBUG', "true")
+
+if config.getboolean('runner', 'DEBUG', fallback='False') == True:
     logging.basicConfig(format='%(levelname)s: %(message)s',
                         level=logging.DEBUG)
+    logging.info('Debug logging is on')
 else:
     logging.basicConfig(
         format='%(levelname)s: %(message)s', level=logging.INFO)
-
-config = ConfigParser()
-config.read('config.ini')
 
 if not access(GIT_BIN, X_OK):
     logging.error("git binary not found or not executable")
