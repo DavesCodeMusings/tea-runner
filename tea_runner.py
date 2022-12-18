@@ -134,8 +134,23 @@ def rsync():
         if git_clone(body['repository']['clone_url'], temp_dir):
             logging.info('rsync ' + body['repository']['name'] + ' to ' + dest)
             chdir(temp_dir)
-            result = run([RSYNC_BIN, '-r', '--exclude=.git', '.', dest],
-                         stdout=None if args.debug else DEVNULL, stderr=None if args.debug else DEVNULL)
+            if config.get('rsync', 'DELETE', fallback=''):
+                result = run([RSYNC_BIN, '-r',
+                            '--exclude=.git',
+                            '--delete-during' if config.get('rsync', 'DELETE', fallback='') else '',
+                            '.',
+                            dest],
+                            stdout=None if args.debug else DEVNULL,
+                            stderr=None if args.debug else DEVNULL
+                        )
+            else:
+                result = run([RSYNC_BIN, '-r',
+							'--exclude=.git',
+							'.',
+							dest],
+							stdout=None if args.debug else DEVNULL,
+							stderr=None if args.debug else DEVNULL
+                        )
             if result.returncode != 0:
                 return jsonify(status='rsync failed'), 500
         else:
