@@ -68,6 +68,7 @@ if not access(DOCKER_BIN, X_OK):
     logging.error("docker binary not found or not executable")
     exit(1)
 
+
 def git_clone(src_url, dest_dir):
     """
     Clone a remote git repository into a local directory.
@@ -88,7 +89,9 @@ def git_clone(src_url, dest_dir):
                        stdout=None if args.debug else DEVNULL, stderr=None if args.debug else DEVNULL)
     return clone_result.returncode == 0
 
+
 app = Flask(__name__)
+
 
 @app.before_request
 def check_authorized():
@@ -105,6 +108,7 @@ def check_authorized():
         else:
             logging.info('Request from ' + request.remote_addr)
 
+
 @app.before_request
 def check_media_type():
     """
@@ -115,11 +119,13 @@ def check_media_type():
             '"Content-Type: application/json" header missing from request made by ' + request.remote_addr)
         return jsonify(status='unsupported media type'), 415
 
+
 @app.route('/test', methods=['POST'])
 def test():
     logging.debug('Content-Type: ' + request.headers.get('Content-Type'))
     logging.debug(request.get_json(force=True))
     return jsonify(status='success', sender=request.remote_addr)
+
 
 @app.route('/rsync', methods=['POST'])
 def rsync():
@@ -136,27 +142,29 @@ def rsync():
             chdir(temp_dir)
             if config.get('rsync', 'DELETE', fallback=''):
                 result = run([RSYNC_BIN, '-r',
-                            '--exclude=.git',
-                            '--delete-during' if config.get('rsync', 'DELETE', fallback='') else '',
-                            '.',
-                            dest],
-                            stdout=None if args.debug else DEVNULL,
-                            stderr=None if args.debug else DEVNULL
-                        )
+                              '--exclude=.git',
+                              '--delete-during' if config.get(
+                                  'rsync', 'DELETE', fallback='') else '',
+                              '.',
+                              dest],
+                             stdout=None if args.debug else DEVNULL,
+                             stderr=None if args.debug else DEVNULL
+                             )
             else:
                 result = run([RSYNC_BIN, '-r',
-							'--exclude=.git',
-							'.',
-							dest],
-							stdout=None if args.debug else DEVNULL,
-							stderr=None if args.debug else DEVNULL
-                        )
+                              '--exclude=.git',
+                              '.',
+                              dest],
+                             stdout=None if args.debug else DEVNULL,
+                             stderr=None if args.debug else DEVNULL
+                             )
             if result.returncode != 0:
                 return jsonify(status='rsync failed'), 500
         else:
             return jsonify(status='git clone failed'), 500
 
     return jsonify(status='success')
+
 
 @app.route('/docker/build', methods=['POST'])
 def docker_build():
@@ -174,6 +182,7 @@ def docker_build():
             return jsonify(status='git clone failed'), 500
 
     return jsonify(status='success')
+
 
 if __name__ == '__main__':
     logging.info('Limiting requests to: ' + config.get('runner',
