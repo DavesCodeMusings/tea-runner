@@ -35,6 +35,7 @@ import logging
 GIT_BIN = '/usr/bin/git'
 RSYNC_BIN = '/usr/bin/rsync'
 DOCKER_BIN = '/usr/bin/docker'
+TF_BIN = '/usr/bin/terraform'
 
 print("Tea Runner")
 
@@ -183,6 +184,46 @@ def docker_build():
 
     return jsonify(status='success')
 
+@app.route('/terraform/plan', methods=['POST'])
+def terraform_plan():
+    body = request.get_json()
+
+    with TemporaryDirectory() as temp_dir:
+        if git_clone(body['repository']['clone_url'], temp_dir):
+            logging.info('terraform init')
+            chdir(temp_dir)
+            result = run([TF_BIN, 'init', '-no-color'],
+                         stdout=None if args.debug else DEVNULL, stderr=None if args.debug else DEVNULL)
+            if result.returncode != 0:
+                return jsonify(status='terraform init failed'), 500
+            result = run([TF_BIN, 'plan', '-no-color'],
+                         stdout=None, stderr=None)
+            if result.returncode != 0:
+                return jsonify(status='terraform plan failed'), 500
+        else:
+            return jsonify(status='git clone failed'), 500
+
+    return jsonify(status='success')
+
+@app.route('/terraform/apply', methods=['POST'])
+def terraform_apply():
+    body = request.get_json()
+    with TemporaryDirectory() as temp_dir:
+        if git_clone(body['repository']['clone_url'], temp_dir):
+            logging.info('terraform init')
+            chdir(temp_dir)
+            result = run([TF_BIN, 'init', '-no-color'],
+                         stdout=None if args.debug else DEVNULL, stderr=None if args.debug else DEVNULL)
+            if result.returncode != 0:
+                return jsonify(status='terraform init failed'), 500
+            result = run([TF_BIN, 'apply', '-auto-approve', '-no-color'],
+                         stdout=None if args.debug else DEVNULL, stderr=None if args.debug else DEVNULL)
+            if result.returncode != 0:
+                return jsonify(status='terraform apply failed'), 500
+        else:
+            return jsonify(status='git clone failed'), 500
+
+    return jsonify(status='success')
 
 if __name__ == '__main__':
     logging.info('Limiting requests to: ' + config.get('runner',
