@@ -32,32 +32,31 @@ from configparser import ConfigParser
 from argparse import ArgumentParser
 import logging
 
-GIT_BIN = '/usr/bin/git'
-RSYNC_BIN = '/usr/bin/rsync'
-DOCKER_BIN = '/usr/bin/docker'
-TF_BIN = '/usr/bin/terraform'
+GIT_BIN = "/usr/bin/git"
+RSYNC_BIN = "/usr/bin/rsync"
+DOCKER_BIN = "/usr/bin/docker"
+TF_BIN = "/usr/bin/terraform"
 
 print("Tea Runner")
 
 # Debug is a command-line option, but most configuration comes from config.ini
 arg_parser = ArgumentParser()
-arg_parser.add_argument('-d', '--debug', action='store_true',
-                        help='display debugging output while running')
+arg_parser.add_argument(
+    "-d", "--debug", action="store_true", help="display debugging output while running"
+)
 args = arg_parser.parse_args()
 
 config = ConfigParser()
-config.read('config.ini')
+config.read("config.ini")
 
 if args.debug:
-    config.set('runner', 'DEBUG', "true")
+    config.set("runner", "DEBUG", "true")
 
-if config.getboolean('runner', 'DEBUG', fallback='False') == True:
-    logging.basicConfig(format='%(levelname)s: %(message)s',
-                        level=logging.DEBUG)
-    logging.info('Debug logging is on')
+if config.getboolean("runner", "DEBUG", fallback="False") == True:
+    logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.DEBUG)
+    logging.info("Debug logging is on")
 else:
-    logging.basicConfig(
-        format='%(levelname)s: %(message)s', level=logging.INFO)
+    logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
 
 if not access(GIT_BIN, X_OK):
     logging.error("git binary not found or not executable")
@@ -82,12 +81,15 @@ def git_clone(src_url, dest_dir):
        (boolean): True if command returns success.
     """
 
-    logging.info('git clone ' + src_url)
-    if config.getboolean('runner', 'GIT_SSL_NO_VERIFY', fallback='False') == True:
-        environ['GIT_SSL_NO_VERIFY'] = 'true'
+    logging.info("git clone " + src_url)
+    if config.getboolean("runner", "GIT_SSL_NO_VERIFY", fallback="False") == True:
+        environ["GIT_SSL_NO_VERIFY"] = "true"
     chdir(dest_dir)
-    clone_result = run([GIT_BIN, 'clone', src_url, '.'],
-                       stdout=None if args.debug else DEVNULL, stderr=None if args.debug else DEVNULL)
+    clone_result = run(
+        [GIT_BIN, "clone", src_url, "."],
+        stdout=None if args.debug else DEVNULL,
+        stderr=None if args.debug else DEVNULL,
+    )
     return clone_result.returncode == 0
 
 
@@ -99,15 +101,16 @@ def check_authorized():
     """
     Only respond to requests from ALLOWED_IP_RANGE if it's configured in config.ini
     """
-    if config.has_option('runner', 'ALLOWED_IP_RANGE'):
-        allowed_ip_range = ip_network(config['runner']['ALLOWED_IP_RANGE'])
+    if config.has_option("runner", "ALLOWED_IP_RANGE"):
+        allowed_ip_range = ip_network(config["runner"]["ALLOWED_IP_RANGE"])
         requesting_ip = ip_address(request.remote_addr)
         if requesting_ip not in allowed_ip_range:
             logging.info(
-                'Dropping request from unauthorized host ' + request.remote_addr)
-            return jsonify(status='forbidden'), 403
+                "Dropping request from unauthorized host " + request.remote_addr
+            )
+            return jsonify(status="forbidden"), 403
         else:
-            logging.info('Request from ' + request.remote_addr)
+            logging.info("Request from " + request.remote_addr)
 
 
 @app.before_request
@@ -115,118 +118,142 @@ def check_media_type():
     """
     Only respond requests with Content-Type header of application/json
     """
-    if not request.headers.get('Content-Type').lower().startswith('application/json'):
+    if not request.headers.get("Content-Type").lower().startswith("application/json"):
         logging.error(
-            '"Content-Type: application/json" header missing from request made by ' + request.remote_addr)
-        return jsonify(status='unsupported media type'), 415
+            '"Content-Type: application/json" header missing from request made by '
+            + request.remote_addr
+        )
+        return jsonify(status="unsupported media type"), 415
 
 
-@app.route('/test', methods=['POST'])
+@app.route("/test", methods=["POST"])
 def test():
-    logging.debug('Content-Type: ' + request.headers.get('Content-Type'))
+    logging.debug("Content-Type: " + request.headers.get("Content-Type"))
     logging.debug(request.get_json(force=True))
-    return jsonify(status='success', sender=request.remote_addr)
+    return jsonify(status="success", sender=request.remote_addr)
 
 
-@app.route('/rsync', methods=['POST'])
+@app.route("/rsync", methods=["POST"])
 def rsync():
     body = request.get_json()
-    dest = request.args.get('dest') or body['repository']['name']
-    rsync_root = config.get('rsync', 'RSYNC_ROOT', fallback='')
+    dest = request.args.get("dest") or body["repository"]["name"]
+    rsync_root = config.get("rsync", "RSYNC_ROOT", fallback="")
     if rsync_root:
         dest = path.join(rsync_root, utils.secure_filename(dest))
-        logging.debug('rsync dest path updated to ' + dest)
+        logging.debug("rsync dest path updated to " + dest)
 
     with TemporaryDirectory() as temp_dir:
-        if git_clone(body['repository']['clone_url'], temp_dir):
-            logging.info('rsync ' + body['repository']['name'] + ' to ' + dest)
+        if git_clone(body["repository"]["clone_url"], temp_dir):
+            logging.info("rsync " + body["repository"]["name"] + " to " + dest)
             chdir(temp_dir)
-            if config.get('rsync', 'DELETE', fallback=''):
-                result = run([RSYNC_BIN, '-r',
-                              '--exclude=.git',
-                              '--delete-during' if config.get(
-                                  'rsync', 'DELETE', fallback='') else '',
-                              '.',
-                              dest],
-                             stdout=None if args.debug else DEVNULL,
-                             stderr=None if args.debug else DEVNULL
-                             )
+            if config.get("rsync", "DELETE", fallback=""):
+                result = run(
+                    [
+                        RSYNC_BIN,
+                        "-r",
+                        "--exclude=.git",
+                        "--delete-during"
+                        if config.get("rsync", "DELETE", fallback="")
+                        else "",
+                        ".",
+                        dest,
+                    ],
+                    stdout=None if args.debug else DEVNULL,
+                    stderr=None if args.debug else DEVNULL,
+                )
             else:
-                result = run([RSYNC_BIN, '-r',
-                              '--exclude=.git',
-                              '.',
-                              dest],
-                             stdout=None if args.debug else DEVNULL,
-                             stderr=None if args.debug else DEVNULL
-                             )
+                result = run(
+                    [RSYNC_BIN, "-r", "--exclude=.git", ".", dest],
+                    stdout=None if args.debug else DEVNULL,
+                    stderr=None if args.debug else DEVNULL,
+                )
             if result.returncode != 0:
-                return jsonify(status='rsync failed'), 500
+                return jsonify(status="rsync failed"), 500
         else:
-            return jsonify(status='git clone failed'), 500
+            return jsonify(status="git clone failed"), 500
 
-    return jsonify(status='success')
+    return jsonify(status="success")
 
 
-@app.route('/docker/build', methods=['POST'])
+@app.route("/docker/build", methods=["POST"])
 def docker_build():
     body = request.get_json()
 
     with TemporaryDirectory() as temp_dir:
-        if git_clone(body['repository']['clone_url'], temp_dir):
-            logging.info('docker build')
+        if git_clone(body["repository"]["clone_url"], temp_dir):
+            logging.info("docker build")
             chdir(temp_dir)
-            result = run([DOCKER_BIN, 'build', '-t', body['repository']['name'], '.'],
-                         stdout=None if args.debug else DEVNULL, stderr=None if args.debug else DEVNULL)
+            result = run(
+                [DOCKER_BIN, "build", "-t", body["repository"]["name"], "."],
+                stdout=None if args.debug else DEVNULL,
+                stderr=None if args.debug else DEVNULL,
+            )
             if result.returncode != 0:
-                return jsonify(status='docker build failed'), 500
+                return jsonify(status="docker build failed"), 500
         else:
-            return jsonify(status='git clone failed'), 500
+            return jsonify(status="git clone failed"), 500
 
-    return jsonify(status='success')
+    return jsonify(status="success")
 
-@app.route('/terraform/plan', methods=['POST'])
+
+@app.route("/terraform/plan", methods=["POST"])
 def terraform_plan():
     body = request.get_json()
 
     with TemporaryDirectory() as temp_dir:
-        if git_clone(body['repository']['clone_url'], temp_dir):
-            logging.info('terraform init')
+        if git_clone(body["repository"]["clone_url"], temp_dir):
+            logging.info("terraform init")
             chdir(temp_dir)
-            result = run([TF_BIN, 'init', '-no-color'],
-                         stdout=None if args.debug else DEVNULL, stderr=None if args.debug else DEVNULL)
+            result = run(
+                [TF_BIN, "init", "-no-color"],
+                stdout=None if args.debug else DEVNULL,
+                stderr=None if args.debug else DEVNULL,
+            )
             if result.returncode != 0:
-                return jsonify(status='terraform init failed'), 500
-            result = run([TF_BIN, 'plan', '-no-color'],
-                         stdout=None, stderr=None)
+                return jsonify(status="terraform init failed"), 500
+            result = run([TF_BIN, "plan", "-no-color"], stdout=None, stderr=None)
             if result.returncode != 0:
-                return jsonify(status='terraform plan failed'), 500
+                return jsonify(status="terraform plan failed"), 500
         else:
-            return jsonify(status='git clone failed'), 500
+            return jsonify(status="git clone failed"), 500
 
-    return jsonify(status='success')
+    return jsonify(status="success")
 
-@app.route('/terraform/apply', methods=['POST'])
+
+@app.route("/terraform/apply", methods=["POST"])
 def terraform_apply():
     body = request.get_json()
     with TemporaryDirectory() as temp_dir:
-        if git_clone(body['repository']['clone_url'], temp_dir):
-            logging.info('terraform init')
+        if git_clone(body["repository"]["clone_url"], temp_dir):
+            logging.info("terraform init")
             chdir(temp_dir)
-            result = run([TF_BIN, 'init', '-no-color'],
-                         stdout=None if args.debug else DEVNULL, stderr=None if args.debug else DEVNULL)
+            result = run(
+                [TF_BIN, "init", "-no-color"],
+                stdout=None if args.debug else DEVNULL,
+                stderr=None if args.debug else DEVNULL,
+            )
             if result.returncode != 0:
-                return jsonify(status='terraform init failed'), 500
-            result = run([TF_BIN, 'apply', '-auto-approve', '-no-color'],
-                         stdout=None if args.debug else DEVNULL, stderr=None if args.debug else DEVNULL)
+                return jsonify(status="terraform init failed"), 500
+            result = run(
+                [TF_BIN, "apply", "-auto-approve", "-no-color"],
+                stdout=None if args.debug else DEVNULL,
+                stderr=None if args.debug else DEVNULL,
+            )
             if result.returncode != 0:
-                return jsonify(status='terraform apply failed'), 500
+                return jsonify(status="terraform apply failed"), 500
         else:
-            return jsonify(status='git clone failed'), 500
+            return jsonify(status="git clone failed"), 500
 
-    return jsonify(status='success')
+    return jsonify(status="success")
 
-if __name__ == '__main__':
-    logging.info('Limiting requests to: ' + config.get('runner',
-                 'ALLOWED_IP_RANGE', fallback='<any>'))
-    serve(app, host=config.get('runner', 'LISTEN_IP', fallback='0.0.0.0'),
-          port=config.getint('runner', 'LISTEN_PORT', fallback=1706))
+
+if __name__ == "__main__":
+    logging.info(
+        "Limiting requests to: "
+        + config.get("runner", "ALLOWED_IP_RANGE", fallback="<any>")
+    )
+    serve(
+        app,
+        host=config.get("runner", "LISTEN_IP", fallback="0.0.0.0"),
+        port=config.getint("runner", "LISTEN_PORT", fallback=1706),
+    )
