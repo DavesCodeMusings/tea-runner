@@ -11,8 +11,12 @@ Configuration file (config.ini) options:
     [runner]
     ALLOWED_IP_RANGE=xxx.xxx.xxx.xxx/mm
     # Only respond to requests made from this range of IP addresses. Eg. 192.168.1.0/24
+    GIT_PROTOCOL=<http|ssh>
+    # Choose the protocol to use when cloning repositories. Default to http
     GIT_SSL_NO_VERIFY=true
     # Ignore certificate host verification errors. Useful for self-signed certs.
+    GIT_SSH_NO_VERIFY=true
+    # Ignore certificate host verification errors.
     LISTEN_IP=xxx.xxx.xxx.xxx
     # IP address for incoming requests. Defaults to 0.0.0.0 (Any).
     LISTEN_PORT=xxxx
@@ -58,6 +62,9 @@ if config.getboolean("runner", "DEBUG", fallback="False") == True:
 else:
     logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
 
+git_protocol = config.get("runner", "GIT_PROTOCOL", fallback="http")
+logging.info("git protocol is " + git_protocol)
+
 if not access(GIT_BIN, X_OK):
     logging.error("git binary not found or not executable")
     exit(1)
@@ -69,13 +76,14 @@ if not access(DOCKER_BIN, X_OK):
     exit(1)
 
 
-def git_clone(src_url, dest_dir):
+def git_clone(src_url, dest_dir, protocol):
     """
     Clone a remote git repository into a local directory.
 
     Args:
-        src_url (string): HTTP(S) url used to clone the repo.
+        src_url (string): Url used to clone the repo.
         dest_dir (string): Path to the local directory.
+        protocol (string): Protocol to use to clone the repo.
 
     Returns:
        (boolean): True if command returns success.
@@ -85,6 +93,10 @@ def git_clone(src_url, dest_dir):
     if config.getboolean("runner", "GIT_SSL_NO_VERIFY", fallback="False") == True:
         environ["GIT_SSL_NO_VERIFY"] = "true"
     chdir(dest_dir)
+    if config.getboolean("runner", "GIT_SSH_NO_VERIFY", fallback="False") == True:
+        environ[
+            "GIT_SSH_COMMAND"
+        ] = "ssh -o UserKnownHostsFile=test -o StrictHostKeyChecking=no"
     clone_result = run(
         [GIT_BIN, "clone", src_url, "."],
         stdout=None if args.debug else DEVNULL,
@@ -143,7 +155,13 @@ def rsync():
         logging.debug("rsync dest path updated to " + dest)
 
     with TemporaryDirectory() as temp_dir:
-        if git_clone(body["repository"]["clone_url"], temp_dir):
+        if git_clone(
+            body["repository"]["clone_url"]
+            if git_protocol == "http"
+            else body["repository"]["ssh_url"],
+            temp_dir,
+            git_protocol,
+        ):
             logging.info("rsync " + body["repository"]["name"] + " to " + dest)
             chdir(temp_dir)
             if config.get("rsync", "DELETE", fallback=""):
@@ -180,7 +198,13 @@ def docker_build():
     body = request.get_json()
 
     with TemporaryDirectory() as temp_dir:
-        if git_clone(body["repository"]["clone_url"], temp_dir):
+        if git_clone(
+            body["repository"]["clone_url"]
+            if git_protocol == "http"
+            else body["repository"]["ssh_url"],
+            temp_dir,
+            git_protocol,
+        ):
             logging.info("docker build")
             chdir(temp_dir)
             result = run(
@@ -201,7 +225,13 @@ def terraform_plan():
     body = request.get_json()
 
     with TemporaryDirectory() as temp_dir:
-        if git_clone(body["repository"]["clone_url"], temp_dir):
+        if git_clone(
+            body["repository"]["clone_url"]
+            if git_protocol == "http"
+            else body["repository"]["ssh_url"],
+            temp_dir,
+            git_protocol,
+        ):
             logging.info("terraform init")
             chdir(temp_dir)
             result = run(
@@ -224,7 +254,13 @@ def terraform_plan():
 def terraform_apply():
     body = request.get_json()
     with TemporaryDirectory() as temp_dir:
-        if git_clone(body["repository"]["clone_url"], temp_dir):
+        if git_clone(
+            body["repository"]["clone_url"]
+            if git_protocol == "http"
+            else body["repository"]["ssh_url"],
+            temp_dir,
+            git_protocol,
+        ):
             logging.info("terraform init")
             chdir(temp_dir)
             result = run(
