@@ -23,18 +23,18 @@ Configuration file (config.ini) options:
     # TCP port number used for incoming requests. Defaults to 1706.
 """
 
+import logging
+from argparse import ArgumentParser
+from configparser import ConfigParser
 from ipaddress import ip_address, ip_network
-from os import path
+from os import  access, chdir, environ, path, X_OK
 from subprocess import run, DEVNULL
 from sys import exit
-from os import access, X_OK, chdir, environ, path
 from tempfile import TemporaryDirectory
+
+from flask import Flask, request, jsonify
 from waitress import serve
 from werkzeug import utils
-from flask import Flask, request, jsonify
-from configparser import ConfigParser
-from argparse import ArgumentParser
-import logging
 
 GIT_BIN = "/usr/bin/git"
 RSYNC_BIN = "/usr/bin/rsync"
