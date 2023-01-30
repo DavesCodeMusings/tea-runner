@@ -60,13 +60,7 @@ def git_clone(src_url, dest_dir):
     """
 
     logging.info("git clone " + src_url)
-    if app.runner_config.getboolean("runner", "GIT_SSL_NO_VERIFY", fallback="False") == True:
-        environ["GIT_SSL_NO_VERIFY"] = "true"
     chdir(dest_dir)
-    if app.runner_config.getboolean("runner", "GIT_SSH_NO_VERIFY", fallback="False") == True:
-        environ[
-            "GIT_SSH_COMMAND"
-        ] = "ssh -o UserKnownHostsFile=test -o StrictHostKeyChecking=no"
     clone_result = run(
         [app.git, "clone", src_url, "."],
         stdout=None if args.debug else DEVNULL,
@@ -295,6 +289,19 @@ if __name__ == "__main__":
     except:
         logging.error("terraform binary not found or not executable")
         exit(1)
+
+    if (
+        app.runner_config.getboolean("runner", "GIT_SSL_NO_VERIFY", fallback="False")
+        == True
+    ):
+        environ["GIT_SSL_NO_VERIFY"] = "true"
+    if (
+        app.runner_config.getboolean("runner", "GIT_SSH_NO_VERIFY", fallback="False")
+        == True
+    ):
+        environ[
+            "GIT_SSH_COMMAND"
+        ] = "ssh -o UserKnownHostsFile=test -o StrictHostKeyChecking=no"
 
     serve(
         app,
