@@ -27,15 +27,12 @@ import logging
 from argparse import ArgumentParser
 from configparser import ConfigParser
 from ipaddress import ip_address, ip_network
-from os import access, chdir, environ, path, X_OK
+from os import access, environ, X_OK
 from shutil import which
-from subprocess import run, DEVNULL
 from sys import exit
-from tempfile import TemporaryDirectory
 
 from flask import Flask, request, jsonify
 from waitress import serve
-from werkzeug import utils
 
 import runner.utils
 
@@ -87,140 +84,6 @@ def test():
     logging.debug("Content-Type: " + request.headers.get("Content-Type"))
     logging.debug(request.get_json(force=True))
     return jsonify(status="success", sender=request.remote_addr)
-
-
-@app.route("/rsync", methods=["POST"])
-def rsync():
-    body = request.get_json()
-    dest = request.args.get("dest") or body["repository"]["name"]
-    rsync_root = app.runner_config.get("rsync", "RSYNC_ROOT", fallback="")
-    if rsync_root:
-        dest = path.join(rsync_root, utils.secure_filename(dest))
-        logging.debug("rsync dest path updated to " + dest)
-
-    with TemporaryDirectory() as temp_dir:
-        if runner.utils.git_clone(
-            body["repository"]["clone_url"]
-            if app.git_protocol == "http"
-            else body["repository"]["ssh_url"],
-            temp_dir,
-        ):
-            logging.info("rsync " + body["repository"]["name"] + " to " + dest)
-            chdir(temp_dir)
-            if app.runner_config.get("rsync", "DELETE", fallback=""):
-                result = run(
-                    [
-                        app.rsync,
-                        "-r",
-                        "--exclude=.git",
-                        "--delete-during"
-                        if app.runner_config.get("rsync", "DELETE", fallback="")
-                        else "",
-                        ".",
-                        dest,
-                    ],
-                    stdout=None if logging.root.level == logging.DEBUG else DEVNULL,
-                    stderr=None if logging.root.level == logging.DEBUG else DEVNULL,
-                )
-            else:
-                result = run(
-                    [app.rsync, "-r", "--exclude=.git", ".", dest],
-                    stdout=None if logging.root.level == logging.DEBUG else DEVNULL,
-                    stderr=None if logging.root.level == logging.DEBUG else DEVNULL,
-                )
-            if result.returncode != 0:
-                return jsonify(status="rsync failed"), 500
-        else:
-            return jsonify(status="git clone failed"), 500
-
-    return jsonify(status="success")
-
-
-@app.route("/docker/build", methods=["POST"])
-def docker_build():
-    body = request.get_json()
-
-    with TemporaryDirectory() as temp_dir:
-        if runner.utils.git_clone(
-            body["repository"]["clone_url"]
-            if app.git_protocol == "http"
-            else body["repository"]["ssh_url"],
-            temp_dir,
-        ):
-            logging.info("docker build")
-            chdir(temp_dir)
-            result = run(
-                [app.docker, "build", "-t", body["repository"]["name"], "."],
-                stdout=None if logging.root.level == logging.DEBUG else DEVNULL,
-                stderr=None if logging.root.level == logging.DEBUG else DEVNULL,
-            )
-            if result.returncode != 0:
-                return jsonify(status="docker build failed"), 500
-        else:
-            return jsonify(status="git clone failed"), 500
-
-    return jsonify(status="success")
-
-
-@app.route("/terraform/plan", methods=["POST"])
-def terraform_plan():
-    body = request.get_json()
-
-    with TemporaryDirectory() as temp_dir:
-        if runner.utils.git_clone(
-            body["repository"]["clone_url"]
-            if app.git_protocol == "http"
-            else body["repository"]["ssh_url"],
-            temp_dir,
-        ):
-            logging.info("terraform init")
-            chdir(temp_dir)
-            result = run(
-                [app.tf_bin, "init", "-no-color"],
-                stdout=None if logging.root.level == logging.DEBUG else DEVNULL,
-                stderr=None if logging.root.level == logging.DEBUG else DEVNULL,
-            )
-            if result.returncode != 0:
-                return jsonify(status="terraform init failed"), 500
-            result = run([app.tf_bin, "plan", "-no-color"], stdout=None, stderr=None)
-            if result.returncode != 0:
-                return jsonify(status="terraform plan failed"), 500
-        else:
-            return jsonify(status="git clone failed"), 500
-
-    return jsonify(status="success")
-
-
-@app.route("/terraform/apply", methods=["POST"])
-def terraform_apply():
-    body = request.get_json()
-    with TemporaryDirectory() as temp_dir:
-        if runner.utils.git_clone(
-            body["repository"]["clone_url"]
-            if app.git_protocol == "http"
-            else body["repository"]["ssh_url"],
-            temp_dir,
-        ):
-            logging.info("terraform init")
-            chdir(temp_dir)
-            result = run(
-                [app.tf_bin, "init", "-no-color"],
-                stdout=None if logging.root.level == logging.DEBUG else DEVNULL,
-                stderr=None if logging.root.level == logging.DEBUG else DEVNULL,
-            )
-            if result.returncode != 0:
-                return jsonify(status="terraform init failed"), 500
-            result = run(
-                [app.tf_bin, "apply", "-auto-approve", "-no-color"],
-                stdout=None if logging.root.level == logging.DEBUG else DEVNULL,
-                stderr=None if logging.root.level == logging.DEBUG else DEVNULL,
-            )
-            if result.returncode != 0:
-                return jsonify(status="terraform apply failed"), 500
-        else:
-            return jsonify(status="git clone failed"), 500
-
-    return jsonify(status="success")
 
 
 if __name__ == "__main__":
@@ -282,6 +145,14 @@ if __name__ == "__main__":
         environ[
             "GIT_SSH_COMMAND"
         ] = "ssh -o UserKnownHostsFile=test -o StrictHostKeyChecking=no"
+
+    from runner.docker import docker as docker_bp
+    from runner.rsync import rsync as rsync_bp
+    from runner.terraform import terraform as terraform_bp
+
+    app.register_blueprint(docker_bp, url_prefix="/docker")
+    app.register_blueprint(rsync_bp)
+    app.register_blueprint(terraform_bp, url_prefix="/terraform")
 
     serve(
         app,
