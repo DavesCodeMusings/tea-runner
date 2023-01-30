@@ -37,11 +37,6 @@ from flask import Flask, request, jsonify
 from waitress import serve
 from werkzeug import utils
 
-GIT_BIN = which("git")
-RSYNC_BIN = which("rsync")
-DOCKER_BIN = which("docker")
-TF_BIN = which("terraform")
-
 print("Tea Runner")
 
 # Debug is a command-line option, but most configuration comes from config.ini
@@ -66,27 +61,6 @@ else:
 git_protocol = config.get("runner", "GIT_PROTOCOL", fallback="http")
 logging.info("git protocol is " + git_protocol)
 
-try:
-    access(GIT_BIN, X_OK)
-except:
-    logging.error("git binary not found or not executable")
-    exit(1)
-try:
-    access(RSYNC_BIN, X_OK)
-except:
-    logging.error("rsync binary not found or not executable")
-    exit(1)
-try:
-    access(DOCKER_BIN, X_OK)
-except:
-    logging.error("docker binary not found or not executable")
-    exit(1)
-try:
-    access(TF_BIN, X_OK)
-except:
-    logging.error("terraform binary not found or not executable")
-    exit(1)
-
 
 def git_clone(src_url, dest_dir):
     """
@@ -109,7 +83,7 @@ def git_clone(src_url, dest_dir):
             "GIT_SSH_COMMAND"
         ] = "ssh -o UserKnownHostsFile=test -o StrictHostKeyChecking=no"
     clone_result = run(
-        [GIT_BIN, "clone", src_url, "."],
+        [app.git, "clone", src_url, "."],
         stdout=None if args.debug else DEVNULL,
         stderr=None if args.debug else DEVNULL,
     )
@@ -177,7 +151,7 @@ def rsync():
             if config.get("rsync", "DELETE", fallback=""):
                 result = run(
                     [
-                        RSYNC_BIN,
+                        app.rsync,
                         "-r",
                         "--exclude=.git",
                         "--delete-during"
@@ -191,7 +165,7 @@ def rsync():
                 )
             else:
                 result = run(
-                    [RSYNC_BIN, "-r", "--exclude=.git", ".", dest],
+                    [app.rsync, "-r", "--exclude=.git", ".", dest],
                     stdout=None if args.debug else DEVNULL,
                     stderr=None if args.debug else DEVNULL,
                 )
@@ -217,7 +191,7 @@ def docker_build():
             logging.info("docker build")
             chdir(temp_dir)
             result = run(
-                [DOCKER_BIN, "build", "-t", body["repository"]["name"], "."],
+                [app.docker, "build", "-t", body["repository"]["name"], "."],
                 stdout=None if args.debug else DEVNULL,
                 stderr=None if args.debug else DEVNULL,
             )
@@ -243,13 +217,13 @@ def terraform_plan():
             logging.info("terraform init")
             chdir(temp_dir)
             result = run(
-                [TF_BIN, "init", "-no-color"],
+                [app.tf_bin, "init", "-no-color"],
                 stdout=None if args.debug else DEVNULL,
                 stderr=None if args.debug else DEVNULL,
             )
             if result.returncode != 0:
                 return jsonify(status="terraform init failed"), 500
-            result = run([TF_BIN, "plan", "-no-color"], stdout=None, stderr=None)
+            result = run([app.tf_bin, "plan", "-no-color"], stdout=None, stderr=None)
             if result.returncode != 0:
                 return jsonify(status="terraform plan failed"), 500
         else:
@@ -271,14 +245,14 @@ def terraform_apply():
             logging.info("terraform init")
             chdir(temp_dir)
             result = run(
-                [TF_BIN, "init", "-no-color"],
+                [app.tf_bin, "init", "-no-color"],
                 stdout=None if args.debug else DEVNULL,
                 stderr=None if args.debug else DEVNULL,
             )
             if result.returncode != 0:
                 return jsonify(status="terraform init failed"), 500
             result = run(
-                [TF_BIN, "apply", "-auto-approve", "-no-color"],
+                [app.tf_bin, "apply", "-auto-approve", "-no-color"],
                 stdout=None if args.debug else DEVNULL,
                 stderr=None if args.debug else DEVNULL,
             )
@@ -295,6 +269,33 @@ if __name__ == "__main__":
         "Limiting requests to: "
         + config.get("runner", "ALLOWED_IP_RANGE", fallback="<any>")
     )
+
+    app.git = which("git")
+    app.rsync = which("rsync")
+    app.docker = which("docker")
+    app.tf_bin = which("terraform")
+
+    try:
+        access(app.git, X_OK)
+    except:
+        logging.error("git binary not found or not executable")
+        exit(1)
+    try:
+        access(app.rsync, X_OK)
+    except:
+        logging.error("rsync binary not found or not executable")
+        exit(1)
+    try:
+        access(app.docker, X_OK)
+    except:
+        logging.error("docker binary not found or not executable")
+        exit(1)
+    try:
+        access(app.tf_bin, X_OK)
+    except:
+        logging.error("terraform binary not found or not executable")
+        exit(1)
+
     serve(
         app,
         host=config.get("runner", "LISTEN_IP", fallback="0.0.0.0"),
