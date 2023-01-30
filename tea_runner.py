@@ -37,6 +37,8 @@ from flask import Flask, request, jsonify
 from waitress import serve
 from werkzeug import utils
 
+import runner.utils
+
 print("Tea Runner")
 
 # Debug is a command-line option, but most configuration comes from config.ini
@@ -45,28 +47,6 @@ arg_parser.add_argument(
     "-d", "--debug", action="store_true", help="display debugging output while running"
 )
 args = arg_parser.parse_args()
-
-
-def git_clone(src_url, dest_dir):
-    """
-    Clone a remote git repository into a local directory.
-
-    Args:
-        src_url (string): Url used to clone the repo.
-        dest_dir (string): Path to the local directory.
-
-    Returns:
-       (boolean): True if command returns success.
-    """
-
-    logging.info("git clone " + src_url)
-    chdir(dest_dir)
-    clone_result = run(
-        [app.git, "clone", src_url, "."],
-        stdout=None if logging.root.level == logging.DEBUG else DEVNULL,
-        stderr=None if logging.root.level == logging.DEBUG else DEVNULL,
-    )
-    return clone_result.returncode == 0
 
 
 app = Flask(__name__)
@@ -119,7 +99,7 @@ def rsync():
         logging.debug("rsync dest path updated to " + dest)
 
     with TemporaryDirectory() as temp_dir:
-        if git_clone(
+        if runner.utils.git_clone(
             body["repository"]["clone_url"]
             if git_protocol == "http"
             else body["repository"]["ssh_url"],
@@ -161,7 +141,7 @@ def docker_build():
     body = request.get_json()
 
     with TemporaryDirectory() as temp_dir:
-        if git_clone(
+        if runner.utils.git_clone(
             body["repository"]["clone_url"]
             if git_protocol == "http"
             else body["repository"]["ssh_url"],
@@ -187,7 +167,7 @@ def terraform_plan():
     body = request.get_json()
 
     with TemporaryDirectory() as temp_dir:
-        if git_clone(
+        if runner.utils.git_clone(
             body["repository"]["clone_url"]
             if git_protocol == "http"
             else body["repository"]["ssh_url"],
@@ -215,7 +195,7 @@ def terraform_plan():
 def terraform_apply():
     body = request.get_json()
     with TemporaryDirectory() as temp_dir:
-        if git_clone(
+        if runner.utils.git_clone(
             body["repository"]["clone_url"]
             if git_protocol == "http"
             else body["repository"]["ssh_url"],
