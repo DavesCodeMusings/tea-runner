@@ -46,21 +46,6 @@ arg_parser.add_argument(
 )
 args = arg_parser.parse_args()
 
-config = ConfigParser()
-config.read("config.ini")
-
-if args.debug:
-    config.set("runner", "DEBUG", "true")
-
-if config.getboolean("runner", "DEBUG", fallback="False") == True:
-    logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.DEBUG)
-    logging.info("Debug logging is on")
-else:
-    logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
-
-git_protocol = config.get("runner", "GIT_PROTOCOL", fallback="http")
-logging.info("git protocol is " + git_protocol)
-
 
 def git_clone(src_url, dest_dir):
     """
@@ -75,10 +60,10 @@ def git_clone(src_url, dest_dir):
     """
 
     logging.info("git clone " + src_url)
-    if config.getboolean("runner", "GIT_SSL_NO_VERIFY", fallback="False") == True:
+    if app.runner_config.getboolean("runner", "GIT_SSL_NO_VERIFY", fallback="False") == True:
         environ["GIT_SSL_NO_VERIFY"] = "true"
     chdir(dest_dir)
-    if config.getboolean("runner", "GIT_SSH_NO_VERIFY", fallback="False") == True:
+    if app.runner_config.getboolean("runner", "GIT_SSH_NO_VERIFY", fallback="False") == True:
         environ[
             "GIT_SSH_COMMAND"
         ] = "ssh -o UserKnownHostsFile=test -o StrictHostKeyChecking=no"
@@ -98,8 +83,8 @@ def check_authorized():
     """
     Only respond to requests from ALLOWED_IP_RANGE if it's configured in config.ini
     """
-    if config.has_option("runner", "ALLOWED_IP_RANGE"):
-        allowed_ip_range = ip_network(config["runner"]["ALLOWED_IP_RANGE"])
+    if app.runner_config.has_option("runner", "ALLOWED_IP_RANGE"):
+        allowed_ip_range = ip_network(app.runner_config["runner"]["ALLOWED_IP_RANGE"])
         requesting_ip = ip_address(request.remote_addr)
         if requesting_ip not in allowed_ip_range:
             logging.info(
@@ -134,7 +119,7 @@ def test():
 def rsync():
     body = request.get_json()
     dest = request.args.get("dest") or body["repository"]["name"]
-    rsync_root = config.get("rsync", "RSYNC_ROOT", fallback="")
+    rsync_root = app.runner_config.get("rsync", "RSYNC_ROOT", fallback="")
     if rsync_root:
         dest = path.join(rsync_root, utils.secure_filename(dest))
         logging.debug("rsync dest path updated to " + dest)
@@ -148,14 +133,14 @@ def rsync():
         ):
             logging.info("rsync " + body["repository"]["name"] + " to " + dest)
             chdir(temp_dir)
-            if config.get("rsync", "DELETE", fallback=""):
+            if app.runner_config.get("rsync", "DELETE", fallback=""):
                 result = run(
                     [
                         app.rsync,
                         "-r",
                         "--exclude=.git",
                         "--delete-during"
-                        if config.get("rsync", "DELETE", fallback="")
+                        if app.runner_config.get("rsync", "DELETE", fallback="")
                         else "",
                         ".",
                         dest,
@@ -265,9 +250,24 @@ def terraform_apply():
 
 
 if __name__ == "__main__":
+    app.runner_config = ConfigParser()
+    app.runner_config.read("config.ini")
+
+    if args.debug:
+        app.runner_config.set("runner", "DEBUG", "true")
+
+    if app.runner_config.getboolean("runner", "DEBUG", fallback="False") == True:
+        logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.DEBUG)
+        logging.info("Debug logging is on")
+    else:
+        logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
+
+    git_protocol = app.runner_config.get("runner", "GIT_PROTOCOL", fallback="http")
+    logging.info("git protocol is " + git_protocol)
+
     logging.info(
         "Limiting requests to: "
-        + config.get("runner", "ALLOWED_IP_RANGE", fallback="<any>")
+        + app.runner_config.get("runner", "ALLOWED_IP_RANGE", fallback="<any>")
     )
 
     app.git = which("git")
@@ -298,6 +298,6 @@ if __name__ == "__main__":
 
     serve(
         app,
-        host=config.get("runner", "LISTEN_IP", fallback="0.0.0.0"),
-        port=config.getint("runner", "LISTEN_PORT", fallback=1706),
+        host=app.runner_config.get("runner", "LISTEN_IP", fallback="0.0.0.0"),
+        port=app.runner_config.getint("runner", "LISTEN_PORT", fallback=1706),
     )
