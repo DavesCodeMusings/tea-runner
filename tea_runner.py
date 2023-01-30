@@ -28,6 +28,7 @@ from argparse import ArgumentParser
 from configparser import ConfigParser
 from ipaddress import ip_address, ip_network
 from os import access, chdir, environ, path, X_OK
+from shutil import which
 from subprocess import run, DEVNULL
 from sys import exit
 from tempfile import TemporaryDirectory
@@ -36,10 +37,10 @@ from flask import Flask, request, jsonify
 from waitress import serve
 from werkzeug import utils
 
-GIT_BIN = "/usr/bin/git"
-RSYNC_BIN = "/usr/bin/rsync"
-DOCKER_BIN = "/usr/bin/docker"
-TF_BIN = "/usr/bin/terraform"
+GIT_BIN = which("git")
+RSYNC_BIN = which("rsync")
+DOCKER_BIN = which("docker")
+TF_BIN = which("terraform")
 
 print("Tea Runner")
 
@@ -65,14 +66,25 @@ else:
 git_protocol = config.get("runner", "GIT_PROTOCOL", fallback="http")
 logging.info("git protocol is " + git_protocol)
 
-if not access(GIT_BIN, X_OK):
+try:
+    access(GIT_BIN, X_OK)
+except:
     logging.error("git binary not found or not executable")
     exit(1)
-if not access(RSYNC_BIN, X_OK):
+try:
+    access(RSYNC_BIN, X_OK)
+except:
     logging.error("rsync binary not found or not executable")
     exit(1)
-if not access(DOCKER_BIN, X_OK):
+try:
+    access(DOCKER_BIN, X_OK)
+except:
     logging.error("docker binary not found or not executable")
+    exit(1)
+try:
+    access(TF_BIN, X_OK)
+except:
+    logging.error("terraform binary not found or not executable")
     exit(1)
 
 
