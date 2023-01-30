@@ -63,8 +63,8 @@ def git_clone(src_url, dest_dir):
     chdir(dest_dir)
     clone_result = run(
         [app.git, "clone", src_url, "."],
-        stdout=None if args.debug else DEVNULL,
-        stderr=None if args.debug else DEVNULL,
+        stdout=None if logging.root.level == logging.DEBUG else DEVNULL,
+        stderr=None if logging.root.level == logging.DEBUG else DEVNULL,
     )
     return clone_result.returncode == 0
 
@@ -139,14 +139,14 @@ def rsync():
                         ".",
                         dest,
                     ],
-                    stdout=None if args.debug else DEVNULL,
-                    stderr=None if args.debug else DEVNULL,
+                    stdout=None if logging.root.level == logging.DEBUG else DEVNULL,
+                    stderr=None if logging.root.level == logging.DEBUG else DEVNULL,
                 )
             else:
                 result = run(
                     [app.rsync, "-r", "--exclude=.git", ".", dest],
-                    stdout=None if args.debug else DEVNULL,
-                    stderr=None if args.debug else DEVNULL,
+                    stdout=None if logging.root.level == logging.DEBUG else DEVNULL,
+                    stderr=None if logging.root.level == logging.DEBUG else DEVNULL,
                 )
             if result.returncode != 0:
                 return jsonify(status="rsync failed"), 500
@@ -171,8 +171,8 @@ def docker_build():
             chdir(temp_dir)
             result = run(
                 [app.docker, "build", "-t", body["repository"]["name"], "."],
-                stdout=None if args.debug else DEVNULL,
-                stderr=None if args.debug else DEVNULL,
+                stdout=None if logging.root.level == logging.DEBUG else DEVNULL,
+                stderr=None if logging.root.level == logging.DEBUG else DEVNULL,
             )
             if result.returncode != 0:
                 return jsonify(status="docker build failed"), 500
@@ -197,8 +197,8 @@ def terraform_plan():
             chdir(temp_dir)
             result = run(
                 [app.tf_bin, "init", "-no-color"],
-                stdout=None if args.debug else DEVNULL,
-                stderr=None if args.debug else DEVNULL,
+                stdout=None if logging.root.level == logging.DEBUG else DEVNULL,
+                stderr=None if logging.root.level == logging.DEBUG else DEVNULL,
             )
             if result.returncode != 0:
                 return jsonify(status="terraform init failed"), 500
@@ -225,15 +225,15 @@ def terraform_apply():
             chdir(temp_dir)
             result = run(
                 [app.tf_bin, "init", "-no-color"],
-                stdout=None if args.debug else DEVNULL,
-                stderr=None if args.debug else DEVNULL,
+                stdout=None if logging.root.level == logging.DEBUG else DEVNULL,
+                stderr=None if logging.root.level == logging.DEBUG else DEVNULL,
             )
             if result.returncode != 0:
                 return jsonify(status="terraform init failed"), 500
             result = run(
                 [app.tf_bin, "apply", "-auto-approve", "-no-color"],
-                stdout=None if args.debug else DEVNULL,
-                stderr=None if args.debug else DEVNULL,
+                stdout=None if logging.root.level == logging.DEBUG else DEVNULL,
+                stderr=None if logging.root.level == logging.DEBUG else DEVNULL,
             )
             if result.returncode != 0:
                 return jsonify(status="terraform apply failed"), 500
