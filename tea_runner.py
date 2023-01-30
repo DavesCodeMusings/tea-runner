@@ -27,7 +27,7 @@ import logging
 from argparse import ArgumentParser
 from configparser import ConfigParser
 from ipaddress import ip_address, ip_network
-from os import  access, chdir, environ, path, X_OK
+from os import access, chdir, environ, path, X_OK
 from subprocess import run, DEVNULL
 from sys import exit
 from tempfile import TemporaryDirectory
