@@ -101,7 +101,7 @@ def rsync():
     with TemporaryDirectory() as temp_dir:
         if runner.utils.git_clone(
             body["repository"]["clone_url"]
-            if git_protocol == "http"
+            if app.git_protocol == "http"
             else body["repository"]["ssh_url"],
             temp_dir,
         ):
@@ -143,7 +143,7 @@ def docker_build():
     with TemporaryDirectory() as temp_dir:
         if runner.utils.git_clone(
             body["repository"]["clone_url"]
-            if git_protocol == "http"
+            if app.git_protocol == "http"
             else body["repository"]["ssh_url"],
             temp_dir,
         ):
@@ -169,7 +169,7 @@ def terraform_plan():
     with TemporaryDirectory() as temp_dir:
         if runner.utils.git_clone(
             body["repository"]["clone_url"]
-            if git_protocol == "http"
+            if app.git_protocol == "http"
             else body["repository"]["ssh_url"],
             temp_dir,
         ):
@@ -197,7 +197,7 @@ def terraform_apply():
     with TemporaryDirectory() as temp_dir:
         if runner.utils.git_clone(
             body["repository"]["clone_url"]
-            if git_protocol == "http"
+            if app.git_protocol == "http"
             else body["repository"]["ssh_url"],
             temp_dir,
         ):
@@ -236,8 +236,8 @@ if __name__ == "__main__":
     else:
         logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
 
-    git_protocol = app.runner_config.get("runner", "GIT_PROTOCOL", fallback="http")
-    logging.info("git protocol is " + git_protocol)
+    app.git_protocol = app.runner_config.get("runner", "GIT_PROTOCOL", fallback="http")
+    logging.info("git protocol is " + app.git_protocol)
 
     logging.info(
         "Limiting requests to: "
