@@ -76,14 +76,13 @@ if not access(DOCKER_BIN, X_OK):
     exit(1)
 
 
-def git_clone(src_url, dest_dir, protocol):
+def git_clone(src_url, dest_dir):
     """
     Clone a remote git repository into a local directory.
 
     Args:
         src_url (string): Url used to clone the repo.
         dest_dir (string): Path to the local directory.
-        protocol (string): Protocol to use to clone the repo.
 
     Returns:
        (boolean): True if command returns success.
@@ -160,7 +159,6 @@ def rsync():
             if git_protocol == "http"
             else body["repository"]["ssh_url"],
             temp_dir,
-            git_protocol,
         ):
             logging.info("rsync " + body["repository"]["name"] + " to " + dest)
             chdir(temp_dir)
@@ -203,7 +201,6 @@ def docker_build():
             if git_protocol == "http"
             else body["repository"]["ssh_url"],
             temp_dir,
-            git_protocol,
         ):
             logging.info("docker build")
             chdir(temp_dir)
@@ -230,7 +227,6 @@ def terraform_plan():
             if git_protocol == "http"
             else body["repository"]["ssh_url"],
             temp_dir,
-            git_protocol,
         ):
             logging.info("terraform init")
             chdir(temp_dir)
@@ -259,7 +255,6 @@ def terraform_apply():
             if git_protocol == "http"
             else body["repository"]["ssh_url"],
             temp_dir,
-            git_protocol,
         ):
             logging.info("terraform init")
             chdir(temp_dir)
