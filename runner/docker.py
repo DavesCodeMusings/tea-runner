@@ -3,7 +3,7 @@ from os import chdir, path
 from subprocess import run, DEVNULL
 from tempfile import TemporaryDirectory
 
-from flask import Blueprint, current_app, jsonify, request
+from quart import Blueprint, current_app, jsonify, request
 
 import runner.utils
 
@@ -11,8 +11,8 @@ docker = Blueprint("docker", __name__)
 
 
 @docker.route("/build", methods=["POST"])
-def docker_build():
-    body = request.get_json()
+async def docker_build():
+    body = await request.get_json()
 
     with TemporaryDirectory() as temp_dir:
         if runner.utils.git_clone(

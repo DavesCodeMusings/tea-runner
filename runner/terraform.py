@@ -3,7 +3,7 @@ from os import chdir
 from subprocess import run, DEVNULL
 from tempfile import TemporaryDirectory
 
-from flask import Blueprint, current_app, jsonify, request
+from quart import Blueprint, current_app, jsonify, request
 
 import runner.utils
 
@@ -11,8 +11,8 @@ terraform = Blueprint("terraform", __name__)
 
 
 @terraform.route("/plan", methods=["POST"])
-def terraform_plan():
-    body = request.get_json()
+async def terraform_plan():
+    body = await request.get_json()
 
     with TemporaryDirectory() as temp_dir:
         if runner.utils.git_clone(

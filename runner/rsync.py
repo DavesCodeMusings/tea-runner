@@ -3,7 +3,7 @@ from os import chdir, path
 from subprocess import run, DEVNULL
 from tempfile import TemporaryDirectory
 
-from flask import Blueprint, current_app, jsonify, request
+from quart import Blueprint, current_app, jsonify, request
 from werkzeug import utils
 
 import runner.utils
@@ -12,8 +12,8 @@ rsync = Blueprint("rsync", __name__)
 
 
 @rsync.route("/rsync", methods=["POST"])
-def route_rsync():
-    body = request.get_json()
+async def route_rsync():
+    body = await request.get_json()
     dest = request.args.get("dest") or body["repository"]["name"]
     rsync_root = current_app.runner_config.get("rsync", "RSYNC_ROOT", fallback="")
     if rsync_root:

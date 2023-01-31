@@ -31,8 +31,7 @@ from os import access, environ, X_OK
 from shutil import which
 from sys import exit
 
-from flask import Flask, request, jsonify
-from waitress import serve
+from quart import Quart, request, jsonify
 
 import runner.utils
 
@@ -46,11 +45,11 @@ arg_parser.add_argument(
 args = arg_parser.parse_args()
 
 
-app = Flask(__name__)
+app = Quart(__name__)
 
 
 @app.before_request
-def check_authorized():
+async def check_authorized():
     """
     Only respond to requests from ALLOWED_IP_RANGE if it's configured in config.ini
     """
@@ -67,7 +66,7 @@ def check_authorized():
 
 
 @app.before_request
-def check_media_type():
+async def check_media_type():
     """
     Only respond requests with Content-Type header of application/json
     """
@@ -80,9 +79,9 @@ def check_media_type():
 
 
 @app.route("/test", methods=["POST"])
-def test():
+async def test():
     logging.debug("Content-Type: " + request.headers.get("Content-Type"))
-    logging.debug(request.get_json(force=True))
+    logging.debug(await request.get_json(force=True))
     return jsonify(status="success", sender=request.remote_addr)
 
 
@@ -154,8 +153,9 @@ if __name__ == "__main__":
     app.register_blueprint(rsync_bp)
     app.register_blueprint(terraform_bp, url_prefix="/terraform")
 
-    serve(
-        app,
+
+    app.run(
         host=app.runner_config.get("runner", "LISTEN_IP", fallback="0.0.0.0"),
         port=app.runner_config.getint("runner", "LISTEN_PORT", fallback=1706),
+        debug=logging.root.level,
     )

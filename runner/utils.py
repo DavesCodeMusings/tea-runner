@@ -2,7 +2,7 @@ import logging
 from os import chdir
 from subprocess import run, DEVNULL
 
-from flask import current_app
+from quart import current_app
 
 
 def git_clone(src_url, dest_dir):
