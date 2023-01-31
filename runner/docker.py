@@ -1,5 +1,5 @@
 import logging
-from os import chdir, path
+from os import chdir, getcwd, path
 from subprocess import run, DEVNULL
 from tempfile import TemporaryDirectory
 
@@ -15,6 +15,7 @@ async def docker_build():
     body = await request.get_json()
 
     with TemporaryDirectory() as temp_dir:
+        current_dir = getcwd()
         if runner.utils.git_clone(
             body["repository"]["clone_url"]
             if current_app.git_protocol == "http"
@@ -28,6 +29,7 @@ async def docker_build():
                 stdout=None if logging.root.level == logging.DEBUG else DEVNULL,
                 stderr=None if logging.root.level == logging.DEBUG else DEVNULL,
             )
+            chdir(current_dir)
             if result.returncode != 0:
                 return jsonify(status="docker build failed"), 500
         else:

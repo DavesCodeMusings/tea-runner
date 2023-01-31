@@ -1,5 +1,5 @@
 import logging
-from os import chdir
+from os import chdir, getcwd
 from subprocess import run, DEVNULL
 from tempfile import TemporaryDirectory
 
@@ -15,6 +15,7 @@ async def terraform_plan():
     body = await request.get_json()
 
     with TemporaryDirectory() as temp_dir:
+        current_dir = getcwd()
         if runner.utils.git_clone(
             body["repository"]["clone_url"]
             if current_app.git_protocol == "http"
@@ -29,15 +30,18 @@ async def terraform_plan():
                 stderr=None if logging.root.level == logging.DEBUG else DEVNULL,
             )
             if result.returncode != 0:
+                chdir(current_dir)
                 return jsonify(status="terraform init failed"), 500
             result = run(
                 [current_app.tf_bin, "plan", "-no-color"], stdout=None, stderr=None
             )
             if result.returncode != 0:
+                chdir(current_dir)
                 return jsonify(status="terraform plan failed"), 500
         else:
+            chdir(current_dir)
             return jsonify(status="git clone failed"), 500
-
+        chdir(current_dir)
     return jsonify(status="success")
 
 
@@ -45,6 +49,7 @@ async def terraform_plan():
 def terraform_apply():
     body = request.get_json()
     with TemporaryDirectory() as temp_dir:
+        current_dir = getcwd()
         if runner.utils.git_clone(
             body["repository"]["clone_url"]
             if current_app.git_protocol == "http"
@@ -59,6 +64,7 @@ def terraform_apply():
                 stderr=None if logging.root.level == logging.DEBUG else DEVNULL,
             )
             if result.returncode != 0:
+                chdir(current_dir)
                 return jsonify(status="terraform init failed"), 500
             result = run(
                 [current_app.tf_bin, "apply", "-auto-approve", "-no-color"],
@@ -66,8 +72,10 @@ def terraform_apply():
                 stderr=None if logging.root.level == logging.DEBUG else DEVNULL,
             )
             if result.returncode != 0:
+                chdir(current_dir)
                 return jsonify(status="terraform apply failed"), 500
         else:
+            chdir(current_dir)
             return jsonify(status="git clone failed"), 500
-
+        chdir(current_dir)
     return jsonify(status="success")
