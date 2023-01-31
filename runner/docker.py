@@ -1,5 +1,5 @@
 import logging
-from os import chdir, getcwd, path
+from os import chdir, getcwd
 from subprocess import run, DEVNULL
 from tempfile import TemporaryDirectory
 
