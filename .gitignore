@@ -1,1 +1,7 @@
 config.ini
+
+# ignore venv
+**/.venv
+
+# ignore python cache
+**/__pycache__

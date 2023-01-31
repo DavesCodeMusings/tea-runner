@@ -1,7 +1,7 @@
 FROM python:alpine
 WORKDIR /usr/src/app
 RUN apk update
-RUN apk add git rsync
+RUN apk add git rsync terraform
 RUN apk add docker
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
