@@ -1,3 +1,4 @@
+# Tea Runner
 Minimalist CI/CD for your Gitea
 
 [![Build](https://github.com/DavesCodeMusings/tea-runner/actions/workflows/docker-image.yml/badge.svg?branch=main)](https://github.com/DavesCodeMusings/tea-runner/actions/workflows/docker-image.yml)
